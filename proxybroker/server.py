@@ -233,20 +233,22 @@ class Server:
                             await client_writer.drain()
                             return
                         else:
+                            log.debug('proxycontrol api history: ' + previous_proxy)
+                            
                             previous_proxy_bytestring = (
                                 '{"proxy": "%s"}' % previous_proxy
                             ).encode()
-                            client_writer.write(b'HTTP/1.1 200 OK\r\n')
-                            client_writer.write(b'Content-Type: application/json\r\n')
-                            client_writer.write(
-                                f"Content-Length: {str(len(previous_proxy_bytestring) + 2).encode()}\r\n"
-                            )
-                            client_writer.write(b'Access-Control-Allow-Origin: *\r\n')
-                            client_writer.write(
-                                b'Access-Control-Allow-Credentials: true\r\n\r\n'
-                            )
-
-                            client_writer.write(previous_proxy_bytestring + b'\r\n')
+                            
+                            lines = b'HTTP/1.1 200 OK\r\n' + \
+                                    b"Content-Length:" + \
+                                    str(len(previous_proxy_bytestring) + 2).encode() + \
+                                    b'\r\n' + \
+                                    b'Access-Control-Allow-Origin: *\r\n' + \
+                                    b'Access-Control-Allow-Credentials: true\r\n\r\n' + \
+                                    previous_proxy_bytestring + \
+                                    b'\r\n'
+                                
+                            client_writer.write(lines)
                             await client_writer.drain()
                             return
 
