@@ -225,20 +225,25 @@ class Server:
                 elif _operation == 'history':
                     query_type, url = _params.split(':', 1)
                     if query_type == 'url':
-                        previous_proxy = history.get(
-                            f"{client_reader._transport.get_extra_info('peername')[0]}-{url}"
-                        )
+                        if headers.get('Proxy-Authorization'):
+                            previous_proxy = history.get(
+                                f"{client_reader._transport.get_extra_info('peername')[0]}-{headers['Proxy-Authorization']}-{url}"
+                            )
+                        else:
+                            previous_proxy = history.get(
+                                f"{client_reader._transport.get_extra_info('peername')[0]}-{url}"
+                            )
                         if previous_proxy is None:
                             client_writer.write(b'HTTP/1.1 204 No Content\r\n\r\n')
                             await client_writer.drain()
                             return
                         else:
                             log.debug('proxycontrol api history: ' + previous_proxy)
-                            
+
                             previous_proxy_bytestring = (
                                 '{"proxy": "%s"}' % previous_proxy
                             ).encode()
-                            
+
                             lines = b'HTTP/1.1 200 OK\r\n' + \
                                     b"Content-Length:" + \
                                     str(len(previous_proxy_bytestring) + 2).encode() + \
@@ -247,7 +252,7 @@ class Server:
                                     b'Access-Control-Allow-Credentials: true\r\n\r\n' + \
                                     previous_proxy_bytestring + \
                                     b'\r\n'
-                                
+
                             client_writer.write(lines)
                             await client_writer.drain()
                             return
@@ -281,9 +286,14 @@ class Server:
                 else:  # proto: HTTP & HTTPS
                     await proxy.send(request)
 
-                history[
-                    f"{client_reader._transport.get_extra_info('peername')[0]}-{headers['Path']}"
-                ] = (proxy.host + ':' + str(proxy.port))
+                if headers.get('Proxy-Authorization'):
+                    history[
+                        f"{client_reader._transport.get_extra_info('peername')[0]}-{headers['Proxy-Authorization']}-{headers['Path']}"
+                    ] = (proxy.host + ':' + str(proxy.port))
+                else:
+                    history[
+                        f"{client_reader._transport.get_extra_info('peername')[0]}-{headers['Path']}"
+                    ] = (proxy.host + ':' + str(proxy.port))
                 inject_resp_header = {
                     'headers': {'X-Proxy-Info': proxy.host + ':' + str(proxy.port)}
                 }
