@@ -1,3 +1,7 @@
+This is a modified version of proxybroker2 with misc fixes and adjustments to work with [ytsma-worker](https://gitlab.com/colethedj/ytsma-worker)
+
+Changes are in the history_fix branch
+
 ProxyBroker
 ===========
 
