@@ -34,7 +34,7 @@ class ProxyPool:
         self,
         proxies,
         min_req_proxy=5,
-        max_error_rate=0.5,
+        max_error_rate=0.35,
         max_resp_time=8,
         min_queue=5,
         strategy='best',
@@ -94,6 +94,7 @@ class ProxyPool:
         log.debug('%s:%d stat: %s' % (proxy.host, proxy.port, proxy.stat))
 
     def remove(self, host, port):
+        chosen = None
         for proxy in self._newcomers:
             if proxy.host == host and proxy.port == port:
                 chosen = proxy
@@ -214,13 +215,27 @@ class Server:
             if _api == 'api':
                 if _operation == 'remove':
                     proxy_host, proxy_port = _params.split(':', 1)
-                    self._proxy_pool.remove(proxy_host, int(proxy_port))
+                    try:
+                        removed = self._proxy_pool.remove(proxy_host, int(proxy_port))
+                    except Exception as e:
+                        log.critical("Failed to remove proxy: " + str(e))
+                        client_writer.write(b'HTTP/1.1 500 Internal Server Error\r\n\r\n')
+                        await client_writer.drain()
+                        return
+
+                    if removed is None:
+                        log.error("Failed to remove proxy: Is not in the pool/new comers")
+                        client_writer.write(b'HTTP/1.1 410 Gone\r\n\r\n')
+                        await client_writer.drain()
+                        return
+
                     log.debug(
                         'Remove Proxy: client: %d; request: %s; headers: %s; scheme: %s; proxy_host: %s; proxy_port: %s'
                         % (client, request, headers, scheme, proxy_host, proxy_port)
                     )
                     client_writer.write(b'HTTP/1.1 204 No Content\r\n\r\n')
                     await client_writer.drain()
+                    log.info(f"Removed proxy: {proxy_host}")
                     return
                 elif _operation == 'history':
                     query_type, url = _params.split(':', 1)
